@@ -1,0 +1,19 @@
+{
+  "name": "bakcend",
+  "version": "1.0.0",
+  "description": "backend apps",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "idiots718",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "elastic-apm-node": "^3.3.0",
+    "express": "^4.17.1",
+    "mongoose": "^5.7.12"
+  }
+}

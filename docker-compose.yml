@@ -1,0 +1,131 @@
+version: '3.5'
+
+networks:
+  elk:
+    driver: bridge
+
+services:
+  apm-server:
+    container_name: apm-server
+    image: docker.elastic.co/apm/apm-server:7.4.2
+    user: apm-server
+    hostname: apm-server
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+    networks:
+      - elk
+    ports:
+      - "8200:8200"
+    expose:
+      - '8200'
+    depends_on:
+      - elasticsearch
+    volumes: 
+      - ./apm-server/config/apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro
+
+  elasticsearch:
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+    hostname: elasticsearch
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+      - 'ES_JAVA_OPTS=-Xmx1g -Xms1g'
+      - 'ELASTIC_PASSWORD=elastic'
+    networks:
+      - elk
+    ports:
+      - "9200:9200"
+    expose:
+      - '9200'
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./elasticsearch/data:/usr/share/elasticsearch/data/:rw
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    hostname: kibana
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+    networks:
+      - elk
+    expose:
+      - '5601'
+    depends_on: 
+      - elasticsearch
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+
+  mongodb:
+    image: mongo:4.0.13
+    container_name: mongodb
+    restart: always
+    environment:
+      - TZ=${TIMEZONE}
+      - MONGO_INITDB_DATABASE=mern_stack
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=ifjMCRIaeJArKcy
+    volumes:
+      - ./database/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./database/mongo-volume:/data/db
+    ports:
+      - "27017-27019:27017-27019"
+    expose:
+      - '27017'
+    networks:
+      - elk
+
+  backend:
+    build: ./public-html/node-backend/docker/
+    container_name: backend
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+    ports:
+      - "6200:6200"
+    expose:
+      - '6200'
+    volumes:
+      - ./public-html/node-backend:/app:rw
+    depends_on:
+      - mongodb
+    networks:
+      - elk
+
+  frontend:
+    build: ./public-html/react-frontend/docker/
+    container_name: frontend
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+    ports:
+      - "3000:3000"
+    expose:
+      - '3000'
+    volumes:
+      - ./public-html/react-frontend:/app:rw
+    depends_on:
+      - backend
+    networks:
+      - elk
+
+  httpd:
+    container_name: nginx
+    image: bitnami/nginx:${NGINX_VERSION}-${OS_VERSION}
+    hostname: nginx
+    restart: always
+    environment:
+      - 'TZ=${TIMEZONE}'
+    depends_on:
+      - kibana
+    networks:
+      - elk
+    ports:
+      - '80:8080'
+      - '443:8443'
+    volumes:
+      - ./config/nginx/vhost:/opt/bitnami/nginx/conf/vhosts:rw
+      - ./logs/nginx/${NGINX_VERSION}:/opt/bitnami/nginx/logs:rw
